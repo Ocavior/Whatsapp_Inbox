@@ -1,0 +1,51 @@
+whatsapp-business-app/
+├── app/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── config.py
+│   ├── database/
+│   │   ├── __init__.py
+│   │   └── mongodb.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── message.py
+│   │   └── conversation.py
+│   ├── schemas/
+│   │   ├── __init__.py
+│   │   ├── message.py
+│   │   └── conversation.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── whatsapp.py
+│   │   ├── inbox.py
+│   │   ├── bulk_sender.py
+│   │   └── rate_limiter.py
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── webhook.py
+│   │   ├── messages.py
+│   │   ├── conversations.py
+│   │   └── bulk_send.py
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── logger.py
+│   │   ├── security.py
+│   │   └── validators.py
+│   └── workers/
+│       ├── __init__.py
+│       └── message_worker.py
+├── scripts/
+│   ├── setup_database.py
+│   └── health_check.py
+├── tests/
+│   ├── __init__.py
+│   ├── test_services.py
+│   └── test_routes.py
+├── storage/
+│   ├── logs/
+│   └── temp/
+├── requirements.txt
+├── .env.example
+├── docker-compose.yml
+├── Dockerfile
+└── README.md
