@@ -51,8 +51,12 @@ class BulkMessageSender:
                     })
                     continue
                 
-                # Personalize message by replacing {name}
-                personalized_message = message_template.replace('{name}', name if name else 'Customer')
+                # Personalize message by replacing {name} (if placeholder exists)
+                if '{name}' in message_template:
+                    personalized_message = message_template.replace('{name}', name if name else 'Customer')
+                else:
+                    # No placeholder, use template as-is
+                    personalized_message = message_template
                 
                 # Send message
                 logger.info(f"Sending to {phone} ({index}/{total})")

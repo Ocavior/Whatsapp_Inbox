@@ -36,7 +36,7 @@ class BulkSendRequest(BaseModel):
     """Request model for bulk message sending"""
     message_template: str = Field(
         ..., 
-        description="Message template with {name} placeholder. Example: 'Hello {name}, welcome!'",
+        description="Message template. Use {name} for personalization (optional). Example: 'Hello {name}, welcome!' or 'Hello, check our offers!'",
         min_length=1,
         max_length=4096
     )
@@ -52,12 +52,6 @@ class BulkSendRequest(BaseModel):
         ge=0.5,
         le=5.0
     )
-    
-    @validator('message_template')
-    def validate_template(cls, v):
-        if '{name}' not in v:
-            raise ValueError('Message template must contain {name} placeholder')
-        return v
 
 
 class BulkSendResponse(BaseModel):
@@ -87,6 +81,18 @@ async def send_bulk_messages(request: BulkSendRequest):
     }
     ```
     
+    **OR without {name} placeholder (same message for everyone):**
+    ```json
+    {
+      "message_template": "We have a special offer! Visit our store today.",
+      "contacts": [
+        {"phone": "919876543210", "name": "Rahul Kumar"},
+        {"phone": "919123456789", "name": "Priya Sharma"}
+      ],
+      "delay": 1.5
+    }
+    ```
+    
     **Response:**
     ```json
     {
@@ -103,9 +109,8 @@ async def send_bulk_messages(request: BulkSendRequest):
     ```
     
     **Message Personalization:**
-    - Template: "Hello {name}, welcome!"
-    - Sent to Rahul: "Hello Rahul Kumar, welcome!"
-    - Sent to Priya: "Hello Priya Sharma, welcome!"
+    - With {name}: Template "Hello {name}, welcome!" → Sent to Rahul: "Hello Rahul Kumar, welcome!"
+    - Without {name}: Template "Hello, welcome!" → Everyone gets: "Hello, welcome!"
     """
     
     try:

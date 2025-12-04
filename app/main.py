@@ -13,15 +13,13 @@ from datetime import datetime
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifecycle manager"""
-    
+    # Startup
     logger.info("🚀 WhatsApp Business API starting up...")
     
     try:
-        
+        # Connect to MongoDB (async)
         await db.connect_async()
         logger.info("✅ Database connected successfully")
-        
-        
         
         yield
         
@@ -30,7 +28,7 @@ async def lifespan(app: FastAPI):
         raise
     
     finally:
-        
+        # Shutdown
         logger.info("👋 WhatsApp Business API shutting down...")
         await db.close_async()
 
@@ -44,22 +42,44 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
+# Exception handlers
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.error(f"Validation error: {exc}")
+    """Handle validation errors properly"""
+    logger.error(f"Validation error: {exc.errors()}")
+    
+    # Convert errors to JSON-serializable format
+    errors = []
+    for error in exc.errors():
+        error_dict = {
+            "loc": error["loc"],
+            "msg": error["msg"],
+            "type": error["type"]
+        }
+        # Add input if it exists and is serializable
+        if "input" in error:
+            try:
+                error_dict["input"] = str(error["input"])
+            except:
+                pass
+        errors.append(error_dict)
+    
     return JSONResponse(
         status_code=422,
-        content={"detail": exc.errors(), "body": exc.body}
+        content={
+            "detail": errors,
+            "message": "Validation error"
+        }
     )
 
 
@@ -68,7 +88,7 @@ async def general_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled error: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error"}
+        content={"detail": "Internal server error", "message": str(exc)}
     )
 
 
@@ -93,7 +113,7 @@ async def root():
 async def health_check():
     """Health check endpoint"""
     try:
-        
+        # Test database connection
         if db.async_client:
             await db.async_client.admin.command('ping')
             return {
