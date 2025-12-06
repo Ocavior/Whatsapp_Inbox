@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from app.config import *
 from app.database.mongodb import db
 from app.utils.logger import logger
-from app.routes import webhook, messages, conversations, bulk_send
+from app.routes import webhook, messages, conversations, bulk_send, notification
 from datetime import datetime
 
 
@@ -97,7 +97,7 @@ app.include_router(webhook.router)
 app.include_router(messages.router)
 app.include_router(conversations.router)
 app.include_router(bulk_send.router)
-
+app.include_router(notification.router)
 
 @app.get("/")
 async def root():

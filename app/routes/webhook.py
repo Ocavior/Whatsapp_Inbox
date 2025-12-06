@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request, HTTPException, Depends 
+from app.websockets.connection_manager import manager
 from fastapi.responses import PlainTextResponse
 from datetime import datetime
 from app.services.inbox import InboxService
@@ -24,18 +25,17 @@ async def verify_webhook(request: Request):
     logger.info(f"  - Challenge: {challenge}")
     logger.info(f"  - Expected token: {WEBHOOK_VERIFY_TOKEN}")
      
-
+    # Verify the token
     if mode == "subscribe" and token == WEBHOOK_VERIFY_TOKEN:
+        logger.info("✅ Webhook verified successfully!")
         return PlainTextResponse(content=challenge, status_code=200)
-    else:
-        return PlainTextResponse(content="Verification failed", status_code=403)
     
     # Log failure details
     logger.warning(f"❌ Webhook verification failed!")
     logger.warning(f"  - Mode match: {mode == 'subscribe'}")
     logger.warning(f"  - Token match: {token == WEBHOOK_VERIFY_TOKEN}")
     
-    raise HTTPException(status_code=403, detail="Verification failed")
+    return PlainTextResponse(content="Verification failed", status_code=403)
 
 
 @router.get("/test-token")
@@ -96,7 +96,7 @@ async def receive_webhook(
 
 async def _process_incoming_message(message: dict, inbox_service: InboxService, 
                                    whatsapp_service: WhatsAppService):
-    """Process incoming WhatsApp message"""
+    """Process incoming WhatsApp message - WITH WEBSOCKET NOTIFICATION"""
     try:
         message_type = message.get("type")
         from_number = message["from"]
@@ -152,6 +152,24 @@ async def _process_incoming_message(message: dict, inbox_service: InboxService,
         await inbox_service.save_message(message_data)
         logger.info(f"✅ Processed incoming message from {from_number}: {message_type}")
         
+        # 🔔 SEND REAL-TIME WEBSOCKET NOTIFICATION
+        try:
+            await manager.broadcast({
+                "type": "new_message",
+                "data": {
+                    "phone": from_number,
+                    "message": message_data["body"],
+                    "message_type": message_type,
+                    "timestamp": timestamp.isoformat(),
+                    "message_id": message["id"],
+                    "direction": "inbound"
+                }
+            })
+            logger.info(f"📢 WebSocket notification sent for message from {from_number}")
+        except Exception as notif_error:
+            logger.error(f"⚠️ Failed to send WebSocket notification: {notif_error}")
+            # Don't fail the whole webhook if notification fails
+        
         # Mark message as read (optional)
         try:
             await whatsapp_service.mark_message_as_read(message["id"])
@@ -163,7 +181,7 @@ async def _process_incoming_message(message: dict, inbox_service: InboxService,
 
 
 async def _process_status_update(status: dict, inbox_service: InboxService):
-    """Process message status updates (sent, delivered, read, failed)"""
+    """Process message status updates (sent, delivered, read, failed) - WITH WEBSOCKET NOTIFICATION"""
     try:
         message_id = status.get("id")
         new_status = status.get("status")
@@ -185,6 +203,22 @@ async def _process_status_update(status: dict, inbox_service: InboxService):
             
             if success:
                 logger.info(f"✅ Updated message {message_id} status to {new_status}")
+                
+                # 🔔 SEND STATUS UPDATE NOTIFICATION
+                try:
+                    await manager.broadcast({
+                        "type": "message_status",
+                        "data": {
+                            "message_id": message_id,
+                            "status": new_status,
+                            "recipient": recipient,
+                            "error": error_info,
+                            "timestamp": datetime.utcnow().isoformat()
+                        }
+                    })
+                    logger.info(f"📢 WebSocket status notification sent for {message_id}")
+                except Exception as notif_error:
+                    logger.error(f"⚠️ Failed to send status notification: {notif_error}")
             else:
                 logger.warning(f"⚠️ Could not update message {message_id} status")
             
